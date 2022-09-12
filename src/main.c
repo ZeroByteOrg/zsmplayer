@@ -6,7 +6,7 @@
 
 
 ma_device_config deviceConfig;
-ma_device device;
+ma_device YM,PSG;
 
 
 unsigned char vibraphone[] = {
@@ -24,6 +24,11 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     YM_render((int16_t*)pOutput, frameCount);
 }
 
+void data_callback2(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
+{
+    psg_render((int16_t*)pOutput, frameCount);
+}
+
 char initsound() {
 	/* from the Python file:
 	device = miniaudio.PlaybackDevice(sample_rate=self.YM.samplerate(), buffersize_msec=50)
@@ -37,38 +42,63 @@ char initsound() {
 	deviceConfig.dataCallback      = data_callback;
 //	deviceConfig.pUserData         = &decoder;
 
-	if (ma_device_init(NULL, &deviceConfig, &device) != MA_SUCCESS) {
-			printf("Failed to open playback device.\n");
+	if (ma_device_init(NULL, &deviceConfig, &YM) != MA_SUCCESS) {
+			printf("Failed to open YM2151 playback device.\n");
 			return 0;
 	}
 
+	deviceConfig = ma_device_config_init(ma_device_type_playback);
+	deviceConfig.playback.format   = ma_format_s16;
+	deviceConfig.playback.channels = 2;
+	deviceConfig.sampleRate        = 48828;
+	deviceConfig.dataCallback      = data_callback2;
+//	deviceConfig.pUserData         = &decoder;
+
+	if (ma_device_init(NULL, &deviceConfig, &PSG) != MA_SUCCESS) {
+			printf("Failed to open PSG playback device.\n");
+			return 0;
+	}
 	return 1;
 }
 
 int main() {
-	int i;
+	int i,j;
 	x16sound_reset();
 	if (!initsound()) {
 		return -3;
 	}
 
-	if (ma_device_start(&device) != MA_SUCCESS) {
-		printf("Failed to start playback device.\n");
-		ma_device_uninit(&device);
+	if (ma_device_start(&YM) != MA_SUCCESS) {
+		printf("Failed to start YM playback device.\n");
+		ma_device_uninit(&YM);
 		return -4;
 	}
-
+	if (ma_device_start(&PSG) != MA_SUCCESS) {
+		printf("Failed to start PSG playback device.\n");
+		ma_device_uninit(&YM);
+		ma_device_uninit(&PSG);
+		return -4;
+	}
+	YM_reset();
+	psg_reset();
 	YM_write(0x20,vibraphone[0]);
-	for (i=0x38 ; i<0x100 ; i+= 8)
-		YM_write(i,vibraphone[i]);
+	j=0x38;
+	for (i=0 ; i<sizeof(vibraphone) ; i++) {
+		YM_write(j,vibraphone[i]);
+		j+=8;
+	}
 	YM_write(0x28,0x4a);
 	YM_write(0x08,0);
 	YM_write(0x08,0x78);
 
+	psg_writereg(0,0xc0);
+	psg_writereg(2,0xff);
+	psg_writereg(3,0x3f);
 	printf("Press Enter to quit...");
 	getchar();
 
-	ma_device_uninit(&device);
+	ma_device_uninit(&YM);
+	ma_device_uninit(&PSG);
 
 	return 0;
 }
