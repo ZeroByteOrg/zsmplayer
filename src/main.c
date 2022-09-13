@@ -1,104 +1,87 @@
 #include "x16sound.h"
 #include <string.h>
-
-#define MINIAUDIO_IMPLEMENTATION
-#include "miniaudio.h"
-
-
-ma_device_config deviceConfig;
-ma_device YM,PSG;
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h> // sleep()  - remove when no longer using sleep()
 
 
-unsigned char vibraphone[] = {
-	0xe4,0x00,
-	0x19,0x65,0x56,0x61,
-	0x1e,0x41,0x23,0x0a,
-	0x5f,0x9e,0xdb,0x9e,
-	0x10,0x0c,0x07,0x05,
-	0x00,0x0b,0x0a,0x0a,
-	0xba,0xf6,0x85,0xf5
-};
+char* filename;
+char* zsm = NULL;
+unsigned char delay=0;
+int zindex=16;
+int playing=0;
 
-void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
-{
-    YM_render((int16_t*)pOutput, frameCount);
-}
+int load_zsm(char* buffer, const char* filename) {
+	FILE *fileptr;
+	long filelen;
 
-void data_callback2(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
-{
-    psg_render((int16_t*)pOutput, frameCount);
-}
+	if(!(fileptr = fopen(filename, "rb")))  // Open the file in binary mode
+		return 0;
+	fseek(fileptr, 0, SEEK_END);          // Jump to the end of the file
+	filelen = ftell(fileptr);             // Get the current byte offset in the file
+	rewind(fileptr);                      // Jump back to the beginning of the file
 
-char initsound() {
-	/* from the Python file:
-	device = miniaudio.PlaybackDevice(sample_rate=self.YM.samplerate(), buffersize_msec=50)
-	//self.PSGaudio = miniaudio.PlaybackDevice(sample_rate=48828, buffersize_msec=50)
-	*/
-
-	deviceConfig = ma_device_config_init(ma_device_type_playback);
-	deviceConfig.playback.format   = ma_format_s16;
-	deviceConfig.playback.channels = 2;
-	deviceConfig.sampleRate        = YM_samplerate(3579545);
-	deviceConfig.dataCallback      = data_callback;
-//	deviceConfig.pUserData         = &decoder;
-
-	if (ma_device_init(NULL, &deviceConfig, &YM) != MA_SUCCESS) {
-			printf("Failed to open YM2151 playback device.\n");
-			return 0;
-	}
-
-	deviceConfig = ma_device_config_init(ma_device_type_playback);
-	deviceConfig.playback.format   = ma_format_s16;
-	deviceConfig.playback.channels = 2;
-	deviceConfig.sampleRate        = 48828;
-	deviceConfig.dataCallback      = data_callback2;
-//	deviceConfig.pUserData         = &decoder;
-
-	if (ma_device_init(NULL, &deviceConfig, &PSG) != MA_SUCCESS) {
-			printf("Failed to open PSG playback device.\n");
-			return 0;
-	}
+	if(buffer != NULL) free(buffer);
+	buffer = (char *)malloc(filelen);    // Enough memory for the file
+	fread(buffer, filelen, 1, fileptr);  // Read in the entire file
+	fclose(fileptr); // Close the file
 	return 1;
+}
+
+void zsm_tick() {
+	unsigned char cmd,reg,val;
+	if (delay==0) return;
+	if (--delay > 0) return;
+	while (delay==0) {
+		cmd=zsm[zindex++];
+		if (cmd<0x40) {
+			reg=zsm[zindex++];
+			val=zsm[zindex++];
+			psg_writereg(reg,val);
+		}
+		else if (cmd==0x40) {
+			zindex += zsm[zindex] & 0x3f;
+		}
+		else if (cmd<0x80) {
+			cmd &= 0x3f;
+			while (cmd > 0) {
+				reg=zsm[zindex++];
+				val=zsm[zindex++];
+				--cmd;
+				YM_write(reg,val);
+			}
+		}
+		else if (cmd==0x80) {
+			playing=0;
+			//todo: looping
+			break;
+		}
+		else delay = cmd & 0x7f;
+	}
+}
+
+void start_zsm() {
+	zindex=16;
+	float tickrate = 48828/(zsm[0x0c] + (zsm[0x0d]<<8));
+	delay=1;
+	x16sound_callback(&zsm_tick,tickrate);
 }
 
 int main() {
 	int i,j;
 	x16sound_reset();
-	if (!initsound()) {
+	if (!x16sound_init()) {
 		return -3;
 	}
 
-	if (ma_device_start(&YM) != MA_SUCCESS) {
-		printf("Failed to start YM playback device.\n");
-		ma_device_uninit(&YM);
-		return -4;
-	}
-	if (ma_device_start(&PSG) != MA_SUCCESS) {
-		printf("Failed to start PSG playback device.\n");
-		ma_device_uninit(&YM);
-		ma_device_uninit(&PSG);
-		return -4;
-	}
-	YM_reset();
-	psg_reset();
-	YM_write(0x20,vibraphone[0]);
-	j=0x38;
-	for (i=0 ; i<sizeof(vibraphone) ; i++) {
-		YM_write(j,vibraphone[i]);
-		j+=8;
-	}
-	YM_write(0x28,0x4a);
-	YM_write(0x08,0);
-	YM_write(0x08,0x78);
+	if (!load_zsm(zsm,"SONIC.ZSM")) {
+		printf ("Unable to load %s. Exiting.\n",filename);
+	};
+	start_zsm();
 
-	psg_writereg(0,0xc0);
-	psg_writereg(2,0xff);
-	psg_writereg(3,0x3f);
-	printf("Press Enter to quit...");
+	printf ("Playing %s. [press enter to end]",filename);
 	getchar();
-
-	ma_device_uninit(&YM);
-	ma_device_uninit(&PSG);
+  x16sound_shutdown();
 
 	return 0;
 }
