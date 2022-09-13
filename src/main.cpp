@@ -6,34 +6,33 @@
 
 char* filename = "SONIC.ZSM";
 
-float PSG_samplerate, YM_samplerate;
+float YM_samplerate;
+float PSG_samplerate;
 
+float YM_samples=0;
+float PSG_samples=0;
 
-
-/*
-void start_zsm() {
-	zindex=16;
-	float tickrate = 48828/(zsm[0x0c] + (zsm[0x0d]<<8));
-	x16sound_callback(zsm_tick,tickrate);
-	delay=1;
+void fill_buffer() {
+	
 }
-*/
 
 int main() {
 	int i,j;
 	zsm=NULL;
 	x16sound_reset();
-	if (!x16sound_init()) {
-		return -3;
-	}
 	//strcpy(filename)
 	if (!load_zsm(&zsm,filename)) {
 		printf ("Unable to load %s. Exiting.\n",filename);
 	};
-	start_zsm(zsm);
+	YM_samplerate = YM_samplerate(YM_CLOCK)/(*(unsigned short*)&zsm[0x0c]);
+	PSG_samplerate = PSG_SAMPLERATE/(*(unsigned short*)&zsm[0x0c]);
 
-	printf ("Playing %s. [press enter to end]\n",filename);
-	getchar();
+	fill_buffer();
+	if (!x16sound_init()) {
+		return -3;
+	}
+	printf ("Playing %s.\n",filename);
+	while (zsm_tick())
   x16sound_shutdown();
 
 	return 0;
