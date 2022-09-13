@@ -63,8 +63,8 @@ void zsm_tick() {
 void start_zsm() {
 	zindex=16;
 	float tickrate = 48828/(zsm[0x0c] + (zsm[0x0d]<<8));
+	x16sound_callback(zsm_tick,tickrate);
 	delay=1;
-	x16sound_callback(&zsm_tick,tickrate);
 }
 
 int main() {

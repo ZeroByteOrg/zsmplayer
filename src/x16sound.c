@@ -6,6 +6,9 @@
 ma_device_config deviceConfig;
 ma_device YM,PSG;
 
+extern void zsm_tick();
+
+
 void (*tick)(void) = NULL;
 float tickrate=0;
 
@@ -36,7 +39,7 @@ void PSG_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint
 				psg_render((int16_t*)pOutput, floor(tickrate-frames));
 				frameCount -= floor(tickrate-frames);
 				frames -= floor(tickrate-frames);
-				tick();
+				zsm_tick();
 			}
 		}
 }
