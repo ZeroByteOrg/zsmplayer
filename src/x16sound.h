@@ -5,8 +5,19 @@
 #include "opm.h"
 #include "vera_psg.h"
 
-#define PSG_CLOCK 48828
+#define PSG_SAMPLERATE 48828
 #define YM_CLOCK 3579545
+
+#define BUFFSIZE 10000
+
+extern int16_t YMbuffer[BUFFSIZE];
+extern int16_t PSGbuffer[BUFFSIZE];
+
+extern volatile int YMhead  = 0;
+extern volatile int YMtail  = BUFFSIZE-1;
+extern volatile int PSGhead = 0;
+extern volatile int PSGtail = BUFFSIZE-1;
+
 
 extern void psg_reset(void);
 extern void psg_writereg(uint8_t reg, uint8_t val);

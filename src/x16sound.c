@@ -3,26 +3,19 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
 
-#define BUFFSIZE 10000
-
 ma_device YM,PSG;
 
 int16_t YMbuffer[BUFFSIZE];
 int16_t PSGbuffer[BUFFSIZE];
 
-int YMhead  = 0;
-int YMtail  = BUFFSIZE-1;
-int PSGhead = 0;
-int PSGtail = BUFFSIZE-1;
+volatile int YMhead  = 0;
+volatile int YMtail  = BUFFSIZE-1;
+volatile int PSGhead = 0;
+volatile int PSGtail = BUFFSIZE-1;
 
 void x16sound_reset() {
 	YM_reset();
 	psg_reset();
-}
-
-void x16sound_set_music_rate(float hz) {
-	PSG_samplerate = PSG_CLOCK/hz;
-	YM_samplerate = YM_CLOCK/hz;
 }
 
 void out(int16_t* stream, ma_uint32 count, int16_t* buffer, int* head, int* tail) {

@@ -25,14 +25,14 @@ int load_zsm(const char* filename) {
 	return 1;
 }
 
-void zsm_tick() {
+int zsm_tick() {
   unsigned char cmd,reg,val;
 
   static unsigned char delay=1;
   static unsigned int i=16;
 
-	if (delay==0) return;
-	if (--delay > 0) return;
+	if (delay==0) return 0;
+	if (--delay > 0) return 1;
 	while (delay==0) {
 //    printf("[%06x] : ",i);
 		cmd=zsm[i];
@@ -70,4 +70,5 @@ void zsm_tick() {
     }
     ++i;
 	}
+  return (delay > 0);
 }
