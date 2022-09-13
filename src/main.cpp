@@ -42,13 +42,13 @@ int main() {
 	if (!x16sound_init()) {
 		return -3;
 	}
-	strcpy(filename)
+	//strcpy(filename)
 	if (!load_zsm(&zsm,filename)) {
 		printf ("Unable to load %s. Exiting.\n",filename);
 	};
 	start_zsm(zsm);
 
-	printf ("Playing %s. [press enter to end]",filename);
+	printf ("Playing %s. [press enter to end]\n",filename);
 	getchar();
   x16sound_shutdown();
 
