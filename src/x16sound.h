@@ -8,16 +8,15 @@
 extern void psg_reset(void);
 extern void psg_writereg(uint8_t reg, uint8_t val);
 extern void psg_render(int16_t *buf, unsigned num_samples);
+
 extern void YM_render(int16_t *stream, uint32_t samples);
 extern void YM_write(uint8_t reg, uint8_t val);
 extern void YM_reset();
-
 extern uint32_t YM_samplerate(uint32_t clock);
 
 extern void x16sound_reset();
 extern char x16sound_init();
 extern void x16sound_shutdown();
-extern void x16sound_callback(void (*callback)(void), float rate);
 
 /*
 void ym_render(int16_t *stream, uint32_t samples) {

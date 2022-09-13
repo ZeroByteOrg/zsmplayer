@@ -6,12 +6,6 @@
 ma_device_config deviceConfig;
 ma_device YM,PSG;
 
-extern void zsm_tick();
-
-
-void (*tick)(void) = NULL;
-float tickrate=0;
-
 void x16sound_reset() {
 	YM_reset();
 	psg_reset();
@@ -24,24 +18,7 @@ void YM_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint3
 
 void PSG_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
-		static float frames=0;
-		if (tick==NULL) {
-    	psg_render((int16_t*)pOutput, frameCount);
-			return;
-		}
-		while (frameCount > 0) {
-			if (frameCount < tickrate-frames) {
-				psg_render((int16_t*)pOutput, frameCount);
-				frames+=frameCount;
-				frameCount=0;
-			}
-			else {
-				psg_render((int16_t*)pOutput, floor(tickrate-frames));
-				frameCount -= floor(tickrate-frames);
-				frames -= floor(tickrate-frames);
-				zsm_tick();
-			}
-		}
+	psg_render((int16_t*)pOutput, frameCount);
 }
 
 char x16sound_init() {
@@ -50,7 +27,6 @@ char x16sound_init() {
 	//self.PSGaudio = miniaudio.PlaybackDevice(sample_rate=48828, buffersize_msec=50)
 	*/
 
-	tick=NULL;
 	deviceConfig = ma_device_config_init(ma_device_type_playback);
 	deviceConfig.playback.format   = ma_format_s16;
 	deviceConfig.playback.channels = 2;
@@ -95,9 +71,4 @@ char x16sound_init() {
 void x16sound_shutdown() {
 	ma_device_uninit(&YM);
 	ma_device_uninit(&PSG);
-}
-
-void x16sound_callback(void (*callback)(void), float rate) {
-	tick=callback;
-	tickrate=rate;
 }
