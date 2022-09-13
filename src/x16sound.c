@@ -3,14 +3,17 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
 
-extern char* zsm;
-extern void zsm_tick(char*);
+#define BUFFSIZE 10000
 
-ma_device_config deviceConfig;
 ma_device YM,PSG;
 
-float frames=0;
-float FramesPerTick=0;
+int16_t YMbuffer[BUFFSIZE];
+int16_t PSGbuffer[BUFFSIZE];
+
+int YMhead  = 0;
+int YMtail  = BUFFSIZE-1;
+int PSGhead = 0;
+int PSGtail = BUFFSIZE-1;
 
 void x16sound_reset() {
 	YM_reset();
@@ -18,46 +21,51 @@ void x16sound_reset() {
 }
 
 void x16sound_set_music_rate(float hz) {
-	FramesPerTick=48828/hz;
-	frames=0;
+	PSG_samplerate = PSG_CLOCK/hz;
+	YM_samplerate = YM_CLOCK/hz;
+}
+
+void out(int16_t* stream, ma_uint32 count, int16_t* buffer, int* head, int* tail) {
+	if (*tail > *head) {
+		while (count>0 && *tail < BUFFSIZE) {
+			*stream=buffer[*tail];
+			++*tail;
+			--count;
+			++stream;
+		}
+	}
+	if (*tail >= BUFFSIZE) *tail=0;
+	while (count>0 && *tail<*head) {
+		*stream=buffer[*tail];
+		++*tail;
+		--count;
+		++stream;
+	}
+	while (count>0) {
+		*stream = 0; // buffer underflow
+		--count;
+		++stream;
+	}
 }
 
 void YM_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
-    YM_render((int16_t*)pOutput, frameCount);
+	out((int16_t*)pOutput, frameCount, YMbuffer, &YMhead, &YMtail);
 }
 
 void PSG_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
-	if (FramesPerTick==0) {
-		psg_render((int16_t*)pOutput, frameCount);
-		return;
-	}
-	while (frameCount > 0) {
-		unsigned short UntilTick = floor(FramesPerTick-frames);
-		unsigned short nFrames;
-		if (UntilTick < frameCount)
-		 	nFrames=UntilTick;
-		else nFrames=frameCount;
-		psg_render((int16_t*)pOutput, nFrames);
-		zsm_tick(zsm);
-		frameCount-=nFrames;
-		frames+=nFrames-FramesPerTick;
-	}
+	out((int16_t*)pOutput, frameCount, PSGbuffer, &PSGhead, &PSGtail);
 }
 
 char x16sound_init() {
-	/* from the Python file:
-	device = miniaudio.PlaybackDevice(sample_rate=self.YM.samplerate(), buffersize_msec=50)
-	//self.PSGaudio = miniaudio.PlaybackDevice(sample_rate=48828, buffersize_msec=50)
-	*/
+	ma_device_config deviceConfig;
 
 	deviceConfig = ma_device_config_init(ma_device_type_playback);
 	deviceConfig.playback.format   = ma_format_s16;
 	deviceConfig.playback.channels = 2;
 	deviceConfig.sampleRate        = YM_samplerate(3579545);
 	deviceConfig.dataCallback      = YM_callback;
-//	deviceConfig.pUserData         = &decoder;
 
 	if (ma_device_init(NULL, &deviceConfig, &YM) != MA_SUCCESS) {
 			printf("Failed to open YM2151 playback device.\n");
@@ -69,7 +77,6 @@ char x16sound_init() {
 	deviceConfig.playback.channels = 2;
 	deviceConfig.sampleRate        = 48828;
 	deviceConfig.dataCallback      = PSG_callback;
-//	deviceConfig.pUserData         = &decoder;
 
 	if (ma_device_init(NULL, &deviceConfig, &PSG) != MA_SUCCESS) {
 			printf("Failed to open PSG playback device.\n");

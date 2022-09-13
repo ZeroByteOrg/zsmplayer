@@ -5,26 +5,10 @@
 #include <stdlib.h>
 
 char* filename = "SONIC.ZSM";
-char* zsm;
 
-int load_zsm(char** zsm, const char* filename) {
-	FILE *fileptr;
-	long filelen;
-	char* buffer;
+float PSG_samplerate, YM_samplerate;
 
-	if(!(fileptr = fopen(filename, "rb")))  // Open the file in binary mode
-		return 0;
-	fseek(fileptr, 0, SEEK_END);          // Jump to the end of the file
-	filelen = ftell(fileptr);             // Get the current byte offset in the file
-	rewind(fileptr);                      // Jump back to the beginning of the file
 
-	buffer = (char *)malloc(filelen);    // Enough memory for the file
-	fread(buffer, filelen, 1, fileptr);  // Read in the entire file
-	fclose(fileptr); // Close the file
-	if(*zsm != NULL) free(*zsm);
-	*zsm=buffer;
-	return 1;
-}
 
 /*
 void start_zsm() {

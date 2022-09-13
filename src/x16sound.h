@@ -5,6 +5,9 @@
 #include "opm.h"
 #include "vera_psg.h"
 
+#define PSG_CLOCK 48828
+#define YM_CLOCK 3579545
+
 extern void psg_reset(void);
 extern void psg_writereg(uint8_t reg, uint8_t val);
 extern void psg_render(int16_t *buf, unsigned num_samples);
