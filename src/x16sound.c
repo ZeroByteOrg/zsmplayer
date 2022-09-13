@@ -3,12 +3,23 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
 
+extern char* zsm;
+extern void zsm_tick(char*);
+
 ma_device_config deviceConfig;
 ma_device YM,PSG;
+
+float frames=0;
+float FramesPerTick=0;
 
 void x16sound_reset() {
 	YM_reset();
 	psg_reset();
+}
+
+void x16sound_set_music_rate(float hz) {
+	FramesPerTick=48828/hz;
+	frames=0;
 }
 
 void YM_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
@@ -18,7 +29,21 @@ void YM_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint3
 
 void PSG_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
-	psg_render((int16_t*)pOutput, frameCount);
+	if (FramesPerTick==0) {
+		psg_render((int16_t*)pOutput, frameCount);
+		return;
+	}
+	while (frameCount > 0) {
+		unsigned short UntilTick = floor(FramesPerTick-frames);
+		unsigned short nFrames;
+		if (UntilTick < frameCount)
+		 	nFrames=UntilTick;
+		else nFrames=frameCount;
+		psg_render((int16_t*)pOutput, nFrames);
+		zsm_tick(zsm);
+		frameCount-=nFrames;
+		frames+=nFrames-FramesPerTick;
+	}
 }
 
 char x16sound_init() {

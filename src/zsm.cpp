@@ -69,20 +69,14 @@ void zsm_tick(char* zsm) {
 }
 
 void start_zsm(char* zsm) {
-  unsigned int rate,hz;
+//  unsigned int rate,hz;
+  unsigned int hz;
+  float rate;
   if (zsm==NULL) { printf("zsm is null\n"); return; }
   zindex=16;
   delay=1;
   hz=(*(unsigned short*)&zsm[0x0c]);
-  rate=floor((float)1/(float)hz * 1000000);
-  player_start(zsm, zsm_tick,rate);
+  rate=(float)1/(float)hz * 1000000;
+  //player_start(zsm, zsm_tick,rate);
+  x16sound_set_music_rate(hz);
 }
-
-/*
-int main()
-{
-  timer_start(do_something, 1000);
-  while (true)
-    ;
-}
-*/

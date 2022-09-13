@@ -18,6 +18,8 @@ extern void x16sound_reset();
 extern char x16sound_init();
 extern void x16sound_shutdown();
 
+extern void x16sound_set_music_rate(float hz);
+
 /*
 void ym_render(int16_t *stream, uint32_t samples) {
 	YM_render(stream, samples);
