@@ -10,6 +10,12 @@
 
 #define BUFFSIZE 10000
 
+typedef enum chips_enum {
+  CHIP_YM,
+  CHIP_PSG
+} chipid;
+
+/*
 extern int16_t YMbuffer[BUFFSIZE];
 extern int16_t PSGbuffer[BUFFSIZE];
 
@@ -17,7 +23,7 @@ extern volatile int YMhead  = 0;
 extern volatile int YMtail  = BUFFSIZE-1;
 extern volatile int PSGhead = 0;
 extern volatile int PSGtail = BUFFSIZE-1;
-
+*/
 
 extern void psg_reset(void);
 extern void psg_writereg(uint8_t reg, uint8_t val);
@@ -31,6 +37,7 @@ extern uint32_t YM_samplerate(uint32_t clock);
 extern void x16sound_reset();
 extern char x16sound_init();
 extern void x16sound_shutdown();
+extern unsigned int x16sound_render(chipid chip, unsigned int count);
 
 extern void x16sound_set_music_rate(float hz);
 

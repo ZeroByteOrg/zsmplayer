@@ -29,7 +29,7 @@
 #	define YM_D1L_RR_OFFSET 0xE0
 */
 extern "C" {
-void YM_render(int16_t *stream, uint32_t samples);
+void YM_render(int16_t *stream, unsigned samples);
 void YM_write(uint8_t reg, uint8_t val);
 void YM_reset();
 uint32_t YM_samplerate(uint32_t clock);

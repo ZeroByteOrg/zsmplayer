@@ -8,17 +8,17 @@ ma_device YM,PSG;
 int16_t YMbuffer[BUFFSIZE];
 int16_t PSGbuffer[BUFFSIZE];
 
-volatile int YMhead  = 0;
-volatile int YMtail  = BUFFSIZE-1;
-volatile int PSGhead = 0;
-volatile int PSGtail = BUFFSIZE-1;
+unsigned int YMhead  = 0;
+unsigned int YMtail  = BUFFSIZE-1;
+unsigned int PSGhead = 0;
+unsigned int PSGtail = BUFFSIZE-1;
 
 void x16sound_reset() {
 	YM_reset();
 	psg_reset();
 }
 
-void out(int16_t* stream, ma_uint32 count, int16_t* buffer, int* head, int* tail) {
+void out(int16_t* stream, ma_uint32 count, int16_t* buffer, unsigned int* head, unsigned int* tail) {
 	if (*tail > *head) {
 		while (count>0 && *tail < BUFFSIZE) {
 			*stream=buffer[*tail];
@@ -40,6 +40,37 @@ void out(int16_t* stream, ma_uint32 count, int16_t* buffer, int* head, int* tail
 		++stream;
 	}
 }
+
+unsigned int x16sound_render(chipid chip, unsigned int count) {
+	unsigned int samples_rendered=0;
+	int16_t* buf;
+	int16_t tmp[2];
+	unsigned int* head;
+	unsigned int* tail;
+	void (*renderer)(int16_t*,unsigned);
+	switch (chip) {
+		case CHIP_YM:
+			buf  = YMbuffer;
+			head = &YMhead;
+			tail = &YMtail;
+			renderer = &YM_render;
+			break;
+		case CHIP_PSG:
+			buf  = PSGbuffer;
+			head = &PSGhead;
+			tail = &PSGtail;
+			renderer = &psg_render;
+			break;
+		default:
+			return count; // yeah yeah, I rendered it. ;)
+	}
+	while (count > 0) {
+		if (*head == *tail || (*head+1)%BUFFSIZE == *tail) break; // buffer full
+
+	}
+	return samples_rendered;
+}
+
 
 void YM_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {

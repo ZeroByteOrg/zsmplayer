@@ -17,7 +17,6 @@ class ym2151_interface : public ymfm::ymfm_interface
 public:
 	ym2151_interface(uint32_t ymclock = 3579545)
 	    : m_chip(*this),
-	      m_buffer_used(0),
 	      m_chip_sample_rate(m_chip.sample_rate(ymclock)),
 	      m_warning(false)
 	{
@@ -62,7 +61,7 @@ static ym2151_interface Ym_interface;
 
 // present C-style accessor functions for python module
 extern "C" {
-	void YM_render(int16_t *stream, uint32_t samples)
+	void YM_render(int16_t *stream, unsigned samples)
 	{
 		Ym_interface.render(stream, samples);
 	}

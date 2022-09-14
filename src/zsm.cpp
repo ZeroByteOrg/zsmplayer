@@ -25,14 +25,15 @@ int load_zsm(const char* filename) {
 	return 1;
 }
 
-int zsm_tick() {
+bool zsm_tick() {
   unsigned char cmd,reg,val;
 
   static unsigned char delay=1;
   static unsigned int i=16;
 
-	if (delay==0) return 0;
-	if (--delay > 0) return 1;
+	if (delay==0) return false;
+  if (zsm==NULL) return false;
+	if (--delay > 0) return true;
 	while (delay==0) {
 //    printf("[%06x] : ",i);
 		cmd=zsm[i];
@@ -60,7 +61,6 @@ int zsm_tick() {
 		}
 		else if (cmd==0x80) {
 //      printf("END\n");
-			playing=0;
 			//todo: looping
 			break;
 		}
