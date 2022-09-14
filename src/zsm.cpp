@@ -35,38 +35,38 @@ bool zsm_tick() {
   if (zsm==NULL) return false;
 	if (--delay > 0) return true;
 	while (delay==0) {
-//    printf("[%06x] : ",i);
+//printf("[%06x] : ",i);
 		cmd=zsm[i];
 		if (cmd<0x40) {
 			reg=cmd;
 			val=zsm[++i];
 			psg_writereg(reg,val);
-//      printf("PSG Write: %02x %02x\n",reg,val);
+//printf("PSG Write: %02x %02x\n",reg,val);
 		}
 		else if (cmd==0x40) {
-//      printf("EXTCMD: %02x (skipping %d bytes)\n",zsm[i+1],zsm[i+1]&0x3f);
+//printf("EXTCMD: %02x (skipping %d bytes)\n",zsm[i+1],zsm[i+1]&0x3f);
 			i += zsm[++i] & 0x3f;
 		}
 		else if (cmd<0x80) {
 			cmd &= 0x3f;
-//      printf ("YM Write (%d)\n             : ",cmd);
+//printf ("YM Write (%d)\n             : ",cmd);
 			while (cmd > 0) {
 				reg=zsm[++i];
 				val=zsm[++i];
 				--cmd;
 				YM_write(reg,val);
-//        printf ("%02x:%02x ",reg,val);
+//printf ("%02x:%02x ",reg,val);
 			}
-//      printf("\n");
+//printf("\n");
 		}
 		else if (cmd==0x80) {
-//      printf("END\n");
+//printf("END\n");
 			//todo: looping
 			break;
 		}
 		else {
       delay = cmd & 0x7f;
-//      printf("Delay %d ticks\n",delay);
+//printf("Delay %d ticks\n",delay);
     }
     ++i;
 	}

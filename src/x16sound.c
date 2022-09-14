@@ -8,18 +8,26 @@ ma_device YM,PSG;
 int16_t YMbuffer[BUFFSIZE];
 int16_t PSGbuffer[BUFFSIZE];
 
-unsigned int YMhead  = 0;
-unsigned int YMtail  = BUFFSIZE-1;
-unsigned int PSGhead = 0;
-unsigned int PSGtail = BUFFSIZE-1;
+volatile unsigned int YMhead  = 0;
+volatile unsigned int YMtail  = BUFFSIZE-1;
+volatile unsigned int PSGhead = 0;
+volatile unsigned int PSGtail = BUFFSIZE-1;
 
-void x16sound_reset() {
+bool playing=false;
+
+void x16sound_init() {
 	YM_reset();
 	psg_reset();
+	YMhead  = 0;
+	YMtail  = BUFFSIZE-1;
+	PSGhead = 0;
+	PSGtail = BUFFSIZE-1;
+	playing = false;
 }
 
-void out(int16_t* stream, ma_uint32 count, int16_t* buffer, unsigned int* head, unsigned int* tail) {
-	if (*tail > *head) {
+void out(int16_t* stream, ma_uint32 count, int16_t* buffer, volatile unsigned int* head, volatile unsigned int* tail) {
+	count *= 2;
+	if (*tail >= *head) {
 		while (count>0 && *tail < BUFFSIZE) {
 			*stream=buffer[*tail];
 			++*tail;
@@ -45,8 +53,8 @@ unsigned int x16sound_render(chipid chip, unsigned int count) {
 	unsigned int samples_rendered=0;
 	int16_t* buf;
 	int16_t tmp[2];
-	unsigned int* head;
-	unsigned int* tail;
+	volatile unsigned int* head;
+	volatile unsigned int* tail;
 	void (*renderer)(int16_t*,unsigned);
 	switch (chip) {
 		case CHIP_YM:
@@ -66,7 +74,13 @@ unsigned int x16sound_render(chipid chip, unsigned int count) {
 	}
 	while (count > 0) {
 		if (*head == *tail || (*head+1)%BUFFSIZE == *tail) break; // buffer full
-
+		renderer(tmp,1);
+		--count;
+		++samples_rendered;
+		buf[*head]=tmp[0];
+		*head = (*head+1) % BUFFSIZE;
+		buf[*head]=tmp[1];
+		*head = (*head+1) % BUFFSIZE;
 	}
 	return samples_rendered;
 }
@@ -74,15 +88,18 @@ unsigned int x16sound_render(chipid chip, unsigned int count) {
 
 void YM_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
+//	printf ("playing %u YM samples, buffer has %d samples\n",frameCount,YMhead-YMtail-1>=0?YMhead-YMtail-1:YMhead-YMtail+BUFFSIZE-1);
 	out((int16_t*)pOutput, frameCount, YMbuffer, &YMhead, &YMtail);
 }
 
 void PSG_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
+//	printf ("playing %u PSG samples, buffer has %d samples\n",frameCount,PSGhead-PSGtail-1>=0?PSGhead-PSGtail-1:PSGhead-PSGtail+BUFFSIZE-1);
 	out((int16_t*)pOutput, frameCount, PSGbuffer, &PSGhead, &PSGtail);
 }
 
-char x16sound_init() {
+char x16sound_start_audio() {
+	playing=false;
 	ma_device_config deviceConfig;
 
 	deviceConfig = ma_device_config_init(ma_device_type_playback);
@@ -118,13 +135,18 @@ char x16sound_init() {
 		ma_device_uninit(&PSG);
 		return 0;
 	}
-	YM_reset();
-	psg_reset();
-
+	playing=true;
 	return 1;
 }
 
+void x16sound_empty_buffer() {
+	if (!playing) return;
+	while ( (YMtail+1)%BUFFSIZE != YMhead || (PSGtail+1)%BUFFSIZE != PSGhead ) {}
+}
+
 void x16sound_shutdown() {
+	x16sound_empty_buffer();
 	ma_device_uninit(&YM);
 	ma_device_uninit(&PSG);
+	playing=false;
 }

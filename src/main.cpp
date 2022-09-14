@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-char* filename = "SONIC.ZSM";
+char filename[] = "SONIC.ZSM";
 
 float YMrate;
 float PSGrate;
@@ -15,44 +15,56 @@ float PSG_samples=0;
 
 // returns -1 = music not playing, 0=buffer full, 1=done and music is playing
 int tick() {
-	if (!zsm_tick()) return -1;
 	int buffer_full=0;
+	unsigned int r;
 	static int ym_remain = 0;
 	static int psg_remain = 0;
-	ym_remain += YMrate;
-	psg_remain += PSGrate;
-	while (ym_remain >= 1 || psg_remain >= 1) {
-		ym_remain -= x16sound_render(CHIP_YM, floor(ym_remain));
-		psg_remain -= x16sound_render(CHIP_PSG, floor(psg_remain));
-		buffer_full |=  (ym_remain >= 1 || psg_remain >= 1);
+	if (ym_remain < 1 && psg_remain < 1) {
+		if (!zsm_tick()) return -1;
+		ym_remain += YMrate;
+		psg_remain += PSGrate;
 	}
+	while (ym_remain >= 1 || psg_remain >= 1) {
+		r = x16sound_render(CHIP_YM, floor(ym_remain));
+//		printf ("rendered YM:%4u PSG:",r);
+		ym_remain -= r;
+		r = x16sound_render(CHIP_PSG, floor(psg_remain));
+//		printf ("%4u\n",r);
+		psg_remain -= r;
+		buffer_full = (ym_remain >= 1 || psg_remain >= 1) ? 1 : 0;
+		if (buffer_full) break;
+	}
+//	printf ("buffer filled %s\n",buffer_full?"(full)":"(not yet full)");
+
 	return !buffer_full;
 }
 
+// returns 0=music not playing, 1=music still playing
 int fill_buffer() {
-	while (tick()==1) {
-
-	}
+	int result;
+	do {
+		result=tick();
+	} while (result==1);
+	return (result==0);
 }
-
 
 int main() {
 	int i,j;
 	zsm=NULL;
-	x16sound_reset();
+	x16sound_init();
 	//strcpy(filename)
 	if (!load_zsm(filename)) {
 		printf ("Unable to load %s. Exiting.\n",filename);
 	};
-	YMrate = YM_samplerate(YM_CLOCK)/(*(unsigned short*)&zsm[0x0c]);
-	PSGrate = PSG_SAMPLERATE/(*(unsigned short*)&zsm[0x0c]);
-
+	YMrate = (float)YM_samplerate(YM_CLOCK)/(float)(*(unsigned short*)&zsm[0x0c]);
+	PSGrate = (float)(PSG_SAMPLERATE)/(float)(*(unsigned short*)&zsm[0x0c]);
 	fill_buffer();
-	if (!x16sound_init()) {
+	if (!x16sound_start_audio()) {
 		return -3;
 	}
 	printf ("Playing %s.\n",filename);
-	while (zsm_tick())
+	while (fill_buffer()) {}
+	printf ("Done.\n");
   x16sound_shutdown();
 
 	return 0;

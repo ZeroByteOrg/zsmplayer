@@ -8,7 +8,7 @@
 #define PSG_SAMPLERATE 48828
 #define YM_CLOCK 3579545
 
-#define BUFFSIZE 10000
+#define BUFFSIZE 20000
 
 typedef enum chips_enum {
   CHIP_YM,
@@ -34,12 +34,11 @@ extern void YM_write(uint8_t reg, uint8_t val);
 extern void YM_reset();
 extern uint32_t YM_samplerate(uint32_t clock);
 
-extern void x16sound_reset();
-extern char x16sound_init();
+extern void x16sound_init();
+extern char x16sound_start_audio();
+extern void x16sound_empty_buffer();
 extern void x16sound_shutdown();
 extern unsigned int x16sound_render(chipid chip, unsigned int count);
-
-extern void x16sound_set_music_rate(float hz);
 
 /*
 void ym_render(int16_t *stream, uint32_t samples) {
