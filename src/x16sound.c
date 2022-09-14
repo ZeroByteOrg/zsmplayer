@@ -42,6 +42,12 @@ void out(int16_t* stream, ma_uint32 count, int16_t* buffer, volatile unsigned in
 		--count;
 		++stream;
 	}
+if (count>0) {
+	printf("Buffer Underflow  ");
+	if (count%2) printf("with half-sample remaining! CRAP!!!!");
+	printf("\n");
+}
+
 	while (count>0) {
 		*stream = 0; // buffer underflow
 		--count;

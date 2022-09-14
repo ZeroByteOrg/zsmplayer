@@ -10,21 +10,25 @@ char filename[] = "SONIC.ZSM";
 float YMrate;
 float PSGrate;
 
-float YM_samples=0;
-float PSG_samples=0;
-
 // returns -1 = music not playing, 0=buffer full, 1=done and music is playing
 int tick() {
 	int buffer_full=0;
 	unsigned int r;
-	static int ym_remain = 0;
-	static int psg_remain = 0;
+	static float ym_remain = 0;
+	static float psg_remain = 0;
+//	static float lym = 0;
+//	static float lpg = 0;
 	if (ym_remain < 1 && psg_remain < 1) {
+//printf("ZSM tick ------------------\n");
 		if (!zsm_tick()) return -1;
 		ym_remain += YMrate;
 		psg_remain += PSGrate;
 	}
-	while (ym_remain >= 1 || psg_remain >= 1) {
+//if (lym != ym_remain || lpg != psg_remain) {
+//printf ("YMremain=%1.3f PSGremain=%1.3f\n",ym_remain,psg_remain);
+//lym=ym_remain ; lpg = psg_remain;
+//}
+//	while (ym_remain >= 1 || psg_remain >= 1) {
 		r = x16sound_render(CHIP_YM, floor(ym_remain));
 //		printf ("rendered YM:%4u PSG:",r);
 		ym_remain -= r;
@@ -32,11 +36,12 @@ int tick() {
 //		printf ("%4u\n",r);
 		psg_remain -= r;
 		buffer_full = (ym_remain >= 1 || psg_remain >= 1) ? 1 : 0;
-		if (buffer_full) break;
-	}
+		//if (!buffer_full) break;
+//	}
 //	printf ("buffer filled %s\n",buffer_full?"(full)":"(not yet full)");
 
-	return !buffer_full;
+		return !buffer_full;
+//	  return 1;
 }
 
 // returns 0=music not playing, 1=music still playing
@@ -63,7 +68,7 @@ int main() {
 		return -3;
 	}
 	printf ("Playing %s.\n",filename);
-	while (fill_buffer()) {}
+	while (tick()>=0) {}
 	printf ("Done.\n");
   x16sound_shutdown();
 
