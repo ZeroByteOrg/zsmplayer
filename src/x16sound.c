@@ -1,21 +1,27 @@
 #include "x16sound.h"
+#include <cstring> // memset
 
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
 
 ma_device YM,PSG;
+void YM_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
+void PSG_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
 
 int16_t YMbuffer[BUFFSIZE];
 int16_t PSGbuffer[BUFFSIZE];
 
 volatile unsigned int YMhead  = 0;
 volatile unsigned int YMtail  = BUFFSIZE-1;
+volatile ma_uint32    YMskip  = 0;
 volatile unsigned int PSGhead = 0;
 volatile unsigned int PSGtail = BUFFSIZE-1;
+volatile ma_uint32    PSGskip = 0;
 
 bool playing=false;
+bool devices_open=false;
 
-void x16sound_init() {
+char x16sound_init() {
 	YM_reset();
 	psg_reset();
 	YMhead  = 0;
@@ -23,6 +29,33 @@ void x16sound_init() {
 	PSGhead = 0;
 	PSGtail = BUFFSIZE-1;
 	playing = false;
+	YMskip  = 0;
+	PSGskip = 0;
+	if (devices_open) return 1;
+	ma_device_config deviceConfig;
+
+	deviceConfig = ma_device_config_init(ma_device_type_playback);
+	deviceConfig.playback.format   = ma_format_s16;
+	deviceConfig.playback.channels = 2;
+	deviceConfig.sampleRate        = YM_samplerate(3579545);
+	deviceConfig.dataCallback      = YM_callback;
+
+	if (ma_device_init(NULL, &deviceConfig, &YM) != MA_SUCCESS) {
+			printf("Failed to open YM2151 playback device.\n");
+			return 0;
+	}
+
+	deviceConfig = ma_device_config_init(ma_device_type_playback);
+	deviceConfig.playback.format   = ma_format_s16;
+	deviceConfig.playback.channels = 2;
+	deviceConfig.sampleRate        = 48828;
+	deviceConfig.dataCallback      = PSG_callback;
+
+	if (ma_device_init(NULL, &deviceConfig, &PSG) != MA_SUCCESS) {
+			printf("Failed to open PSG playback device.\n");
+			return 0;
+	}
+	return 1;
 }
 
 ma_uint32 out(
@@ -34,6 +67,10 @@ ma_uint32 out(
 	ma_uint32 skip
 ) {
 	count *= 2;
+	if (!playing) {
+		memset(buffer,0,count*2);
+		return 0;
+	}
 //	printf ("%u %u %u\n",*tail,*head,*head-*tail);
 	while (count>0 && (*tail+1)%BUFFSIZE != *head && (*tail+2)%BUFFSIZE != *head) {
 //		printf(".");
@@ -53,9 +90,6 @@ ma_uint32 out(
 	}
 	if (count>0) {
 		skip+=count/2;
-		printf("Buffer Underflow  ");
-		if (count%2) printf("with half-sample remaining! CRAP!!!!");
-		printf("\n");
 	}
 	while (count>0) {
 		*stream = 0; // buffer underflow
@@ -106,7 +140,7 @@ void YM_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint3
 {
 	static ma_uint32 skip=0;
 //	printf("%u --> Streaming YM (%u) --> skip=",skip,frameCount);
-	skip = out((int16_t*)pOutput, frameCount, YMbuffer, &YMhead, &YMtail, skip);
+	YMskip = out((int16_t*)pOutput, frameCount, YMbuffer, &YMhead, &YMtail, YMskip);
 //	printf("%u\n",skip);
 }
 
@@ -114,36 +148,12 @@ void PSG_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint
 {
 	static ma_uint32 skip=0;
 //	printf("%u --> Streaming PSG (%u) --> skip=",skip,frameCount);
-	skip = out((int16_t*)pOutput, frameCount, PSGbuffer, &PSGhead, &PSGtail, skip);
+	PSGskip = out((int16_t*)pOutput, frameCount, PSGbuffer, &PSGhead, &PSGtail, PSGskip);
 //	printf("%u\n",skip);
 }
 
 char x16sound_start_audio() {
 	playing=false;
-	ma_device_config deviceConfig;
-
-	deviceConfig = ma_device_config_init(ma_device_type_playback);
-	deviceConfig.playback.format   = ma_format_s16;
-	deviceConfig.playback.channels = 2;
-	deviceConfig.sampleRate        = YM_samplerate(3579545);
-	deviceConfig.dataCallback      = YM_callback;
-
-	if (ma_device_init(NULL, &deviceConfig, &YM) != MA_SUCCESS) {
-			printf("Failed to open YM2151 playback device.\n");
-			return 0;
-	}
-
-	deviceConfig = ma_device_config_init(ma_device_type_playback);
-	deviceConfig.playback.format   = ma_format_s16;
-	deviceConfig.playback.channels = 2;
-	deviceConfig.sampleRate        = 48828;
-	deviceConfig.dataCallback      = PSG_callback;
-
-	if (ma_device_init(NULL, &deviceConfig, &PSG) != MA_SUCCESS) {
-			printf("Failed to open PSG playback device.\n");
-			return 0;
-	}
-
 	if (ma_device_start(&YM) != MA_SUCCESS) {
 		printf("Failed to start YM playback device.\n");
 		ma_device_uninit(&YM);
@@ -157,6 +167,11 @@ char x16sound_start_audio() {
 	}
 	playing=true;
 	return 1;
+}
+
+void x16sound_stop_audio() {
+	ma_device_stop(&YM);
+	ma_device_stop(&YM);
 }
 
 void x16sound_empty_buffer() {

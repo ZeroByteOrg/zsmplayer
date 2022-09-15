@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <math.h>
 
-char filename[] = "SONIC.ZSM";
-
+//char filename[] = "SONIC.ZSM";
+char* filename;
 float YMrate;
 float PSGrate;
 
@@ -53,22 +53,25 @@ int fill_buffer() {
 	return (result==0);
 }
 
-int main() {
-	int i,j;
+int main(int argc, char *argv[]) {
+	int i=0;
 	zsm=NULL;
-	x16sound_init();
-	//strcpy(filename)
-	if (!load_zsm(filename)) {
-		printf ("Unable to load %s. Exiting.\n",filename);
-	};
-	YMrate = (float)YM_samplerate(YM_CLOCK)/(float)(*(unsigned short*)&zsm[0x0c]);
-	PSGrate = (float)(PSG_SAMPLERATE)/(float)(*(unsigned short*)&zsm[0x0c]);
-	fill_buffer();
-	if (!x16sound_start_audio()) {
-		return -3;
+	while (++i<argc) {
+		if (!x16sound_init()) return -2;
+		filename=argv[i];
+		if (!load_zsm(filename)) {
+			printf ("Unable to load %s.",filename);
+			continue;
+		};
+		YMrate = (float)YM_samplerate(YM_CLOCK)/(float)(*(unsigned short*)&zsm[0x0c]);
+		PSGrate = (float)(PSG_SAMPLERATE)/(float)(*(unsigned short*)&zsm[0x0c]);
+		fill_buffer();
+		if (!x16sound_start_audio()) return -3;
+		printf ("Playing %s.\n",filename);
+		while (tick()>=0) {}
+		x16sound_empty_buffer();
+		x16sound_stop_audio();
 	}
-	printf ("Playing %s.\n",filename);
-	while (tick()>=0) {}
   x16sound_shutdown();
 
 	return 0;

@@ -34,9 +34,10 @@ extern void YM_write(uint8_t reg, uint8_t val);
 extern void YM_reset();
 extern uint32_t YM_samplerate(uint32_t clock);
 
-extern void x16sound_init();
+extern char x16sound_init();
 extern char x16sound_start_audio();
 extern void x16sound_empty_buffer();
+extern void x16sound_stop_audio();
 extern void x16sound_shutdown();
 extern unsigned int x16sound_render(chipid chip, unsigned int count);
 
