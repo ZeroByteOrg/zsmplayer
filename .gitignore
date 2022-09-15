@@ -9,3 +9,5 @@ build/*
 !lib/README.txt
 lib/*
 now
+zsmplayer
+zsmplayer.exe

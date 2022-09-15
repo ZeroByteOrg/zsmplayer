@@ -11,6 +11,11 @@ char delay=1;
 unsigned int ptr;
 char loops;
 
+void no_notify(){}
+
+void (*notify)(void) = &no_notify;
+
+
 int load_zsm(const char* filename) {
 	FILE *fileptr;
 	long filelen;
@@ -67,6 +72,7 @@ bool zsm_tick() {
 			uint32_t l = (*(uint32_t*)&zsm[0x03]) & 0xFFFFFF;
 			if (--loops && l) {
 				ptr=l;
+        notify();
 				continue;
 			}
 			break;
@@ -78,4 +84,8 @@ bool zsm_tick() {
     ++ptr;
 	}
   return (delay > 0);
+}
+
+extern void zsm_onloop(void (*func)(void)) {
+  notify=func;
 }

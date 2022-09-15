@@ -26,11 +26,11 @@ char x16sound_init() {
 	psg_reset();
 	YMhead  = 0;
 	YMtail  = BUFFSIZE-1;
+	YMskip  = 0;
 	PSGhead = 0;
 	PSGtail = BUFFSIZE-1;
-	playing = false;
-	YMskip  = 0;
 	PSGskip = 0;
+	playing = false;
 	if (devices_open) return 1;
 	ma_device_config deviceConfig;
 
@@ -55,6 +55,7 @@ char x16sound_init() {
 			printf("Failed to open PSG playback device.\n");
 			return 0;
 	}
+	devices_open=true;
 	return 1;
 }
 
@@ -138,40 +139,39 @@ unsigned int x16sound_render(chipid chip, unsigned int count) {
 
 void YM_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
-	static ma_uint32 skip=0;
-//	printf("%u --> Streaming YM (%u) --> skip=",skip,frameCount);
 	YMskip = out((int16_t*)pOutput, frameCount, YMbuffer, &YMhead, &YMtail, YMskip);
-//	printf("%u\n",skip);
 }
 
 void PSG_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
-	static ma_uint32 skip=0;
-//	printf("%u --> Streaming PSG (%u) --> skip=",skip,frameCount);
 	PSGskip = out((int16_t*)pOutput, frameCount, PSGbuffer, &PSGhead, &PSGtail, PSGskip);
-//	printf("%u\n",skip);
 }
 
 char x16sound_start_audio() {
 	playing=false;
-	if (ma_device_start(&YM) != MA_SUCCESS) {
-		printf("Failed to start YM playback device.\n");
-		ma_device_uninit(&YM);
-		return 0;
+	if (devices_open) {
+		if (ma_device_start(&YM) != MA_SUCCESS) {
+			printf("Failed to start YM playback device.\n");
+			ma_device_uninit(&YM);
+			return 0;
+		}
+		if (ma_device_start(&PSG) != MA_SUCCESS) {
+			printf("Failed to start PSG playback device.\n");
+			ma_device_uninit(&YM);
+			ma_device_uninit(&PSG);
+			return 0;
+		}
+		playing=true;
+		return 1;
 	}
-	if (ma_device_start(&PSG) != MA_SUCCESS) {
-		printf("Failed to start PSG playback device.\n");
-		ma_device_uninit(&YM);
-		ma_device_uninit(&PSG);
-		return 0;
-	}
-	playing=true;
-	return 1;
+	else return 0;
 }
 
 void x16sound_stop_audio() {
+	if (!playing) return;
 	ma_device_stop(&YM);
 	ma_device_stop(&YM);
+	playing=false;
 }
 
 void x16sound_empty_buffer() {
@@ -180,8 +180,9 @@ void x16sound_empty_buffer() {
 }
 
 void x16sound_shutdown() {
-	x16sound_empty_buffer();
+	if(playing) x16sound_empty_buffer();
 	ma_device_uninit(&YM);
 	ma_device_uninit(&PSG);
 	playing=false;
+	devices_open=false;
 }
