@@ -69,7 +69,6 @@ int main() {
 	}
 	printf ("Playing %s.\n",filename);
 	while (tick()>=0) {}
-	printf ("Done.\n");
   x16sound_shutdown();
 
 	return 0;

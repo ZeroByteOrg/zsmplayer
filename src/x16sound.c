@@ -25,34 +25,44 @@ void x16sound_init() {
 	playing = false;
 }
 
-void out(int16_t* stream, ma_uint32 count, int16_t* buffer, volatile unsigned int* head, volatile unsigned int* tail) {
+ma_uint32 out(
+	int16_t* stream,
+	ma_uint32 count,
+	int16_t* buffer,
+	volatile unsigned int* head,
+	volatile unsigned int* tail,
+	ma_uint32 skip
+) {
 	count *= 2;
-	if (*tail >= *head) {
-		while (count>0 && *tail < BUFFSIZE) {
-			*stream=buffer[*tail];
-			++*tail;
-			--count;
-			++stream;
+//	printf ("%u %u %u\n",*tail,*head,*head-*tail);
+	while (count>0 && (*tail+1)%BUFFSIZE != *head && (*tail+2)%BUFFSIZE != *head) {
+//		printf(".");
+//		if (count==1) printf ("how TF did we get an ODD count???\n");
+		*tail=(*tail+1)%BUFFSIZE;
+		if (skip==0) {
+			stream[0]=buffer[*tail];
+			*tail=(*tail+1)%BUFFSIZE;
+			stream[1]=buffer[*tail];
+			count -= 2;
+			stream=&stream[2];
+		}
+		else {
+			--skip;
+			*tail=(*tail+1)%BUFFSIZE;
 		}
 	}
-	if (*tail >= BUFFSIZE) *tail=0;
-	while (count>0 && *tail<*head) {
-		*stream=buffer[*tail];
-		++*tail;
-		--count;
-		++stream;
+	if (count>0) {
+		skip+=count/2;
+		printf("Buffer Underflow  ");
+		if (count%2) printf("with half-sample remaining! CRAP!!!!");
+		printf("\n");
 	}
-if (count>0) {
-	printf("Buffer Underflow  ");
-	if (count%2) printf("with half-sample remaining! CRAP!!!!");
-	printf("\n");
-}
-
 	while (count>0) {
 		*stream = 0; // buffer underflow
 		--count;
 		++stream;
 	}
+	return skip;
 }
 
 unsigned int x16sound_render(chipid chip, unsigned int count) {
@@ -94,14 +104,18 @@ unsigned int x16sound_render(chipid chip, unsigned int count) {
 
 void YM_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
-//	printf ("playing %u YM samples, buffer has %d samples\n",frameCount,YMhead-YMtail-1>=0?YMhead-YMtail-1:YMhead-YMtail+BUFFSIZE-1);
-	out((int16_t*)pOutput, frameCount, YMbuffer, &YMhead, &YMtail);
+	static ma_uint32 skip=0;
+//	printf("%u --> Streaming YM (%u) --> skip=",skip,frameCount);
+	skip = out((int16_t*)pOutput, frameCount, YMbuffer, &YMhead, &YMtail, skip);
+//	printf("%u\n",skip);
 }
 
 void PSG_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
-//	printf ("playing %u PSG samples, buffer has %d samples\n",frameCount,PSGhead-PSGtail-1>=0?PSGhead-PSGtail-1:PSGhead-PSGtail+BUFFSIZE-1);
-	out((int16_t*)pOutput, frameCount, PSGbuffer, &PSGhead, &PSGtail);
+	static ma_uint32 skip=0;
+//	printf("%u --> Streaming PSG (%u) --> skip=",skip,frameCount);
+	skip = out((int16_t*)pOutput, frameCount, PSGbuffer, &PSGhead, &PSGtail, skip);
+//	printf("%u\n",skip);
 }
 
 char x16sound_start_audio() {

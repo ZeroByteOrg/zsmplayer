@@ -8,7 +8,7 @@
 #define PSG_SAMPLERATE 48828
 #define YM_CLOCK 3579545
 
-#define BUFFSIZE 20000
+#define BUFFSIZE 30000
 
 typedef enum chips_enum {
   CHIP_YM,
